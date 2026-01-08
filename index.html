@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基金交易记录管理系统</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 基金交易记录管理系统</h1>
+            <div class="header-actions">
+                <button id="syncBtn" class="btn btn-sync" title="云同步">☁️ 云同步</button>
+                <button id="settingsBtn" class="btn btn-settings" title="设置">⚙️ 设置</button>
+            </div>
+        </header>
+
+        <!-- 持仓管理标签页 -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="transaction">💰 交易记录</button>
+            <button class="tab-btn" data-tab="holdings">📈 持仓管理</button>
+            <button class="tab-btn" data-tab="analysis">📊 收益分析</button>
+        </div>
+
+        <!-- 交易记录页面 -->
+        <div id="transactionTab" class="tab-content active">
+            <!-- 交易表单 -->
+            <div class="form-section">
+                <h2 id="formTitle">新增交易记录</h2>
+                <form id="transactionForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="transactionType">交易类型 *</label>
+                        <select id="transactionType" required>
+                            <option value="买入">买入</option>
+                            <option value="卖出">卖出</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="date">日期 *</label>
+                        <input type="date" id="date" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fundName">基金名称 *</label>
+                        <div class="input-with-dropdown">
+                            <input type="text" id="fundName" placeholder="例如：东财证券30C" required list="holdingsList">
+                            <datalist id="holdingsList"></datalist>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="fundCode">基金代码</label>
+                        <div class="input-group">
+                            <input type="text" id="fundCode" placeholder="例如：159857">
+                            <button type="button" id="searchFundBtn" class="btn-icon" title="查询基金名称">🔍</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="netValue">确认净值(元) *</label>
+                        <input type="number" id="netValue" step="0.0001" placeholder="1.3929" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="fee">手续费(元) *</label>
+                        <input type="number" id="fee" step="0.01" value="0.00" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="amount">确认金额(元) *</label>
+                        <input type="number" id="amount" step="0.01" placeholder="1057.45" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="shares">确认份额(份) *</label>
+                        <input type="number" id="shares" step="0.01" placeholder="759.17" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="costPrice">持有成本单价(元) *</label>
+                        <input type="number" id="costPrice" step="0.0001" placeholder="1.3172" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="channel">交易渠道</label>
+                        <input type="text" id="channel" placeholder="例如：支付宝、天天基金">
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="remark">备注</label>
+                    <textarea id="remark" rows="2" placeholder="可选填写备注信息"></textarea>
+                </div>
+
+                <!-- 计算结果显示区域 -->
+                <div id="calculationResult" class="calculation-result" style="display: none;">
+                    <h3>计算结果</h3>
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <span class="result-label">成本金额:</span>
+                            <span class="result-value" id="resultCostAmount">0.00</span> 元
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">收益金额:</span>
+                            <span class="result-value" id="resultProfit">0.00</span> 元
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">收益率:</span>
+                            <span class="result-value" id="resultProfitRate">0.00</span> %
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" id="calculateBtn" class="btn btn-secondary">计算收益</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">保存记录</button>
+                    <button type="button" id="cancelEditBtn" class="btn btn-default" style="display:none;">取消编辑</button>
+                    <button type="reset" class="btn btn-default">清空表单</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 数据操作区 -->
+        <div class="data-actions">
+            <button id="exportBtn" class="btn btn-success">📥 导出数据</button>
+            <button id="importBtn" class="btn btn-info">📤 导入数据</button>
+            <input type="file" id="importFile" accept=".json" style="display: none;">
+            <button id="clearAllBtn" class="btn btn-danger">🗑️ 清空所有数据</button>
+        </div>
+
+        <!-- 交易记录表格 -->
+        <div class="table-section">
+            <h2>交易历史记录</h2>
+            <div class="filter-section">
+                <input type="text" id="searchInput" placeholder="搜索基金名称或代码...">
+                <select id="typeFilter">
+                    <option value="">全部类型</option>
+                    <option value="买入">买入</option>
+                    <option value="卖出">卖出</option>
+                </select>
+                <input type="date" id="startDateFilter" placeholder="开始日期">
+                <input type="date" id="endDateFilter" placeholder="结束日期">
+                <button id="resetFilterBtn" class="btn btn-default">重置筛选</button>
+            </div>
+            
+            <div class="table-wrapper">
+                <table id="transactionTable">
+                    <thead>
+                        <tr>
+                            <th>序号</th>
+                            <th class="sortable" data-sort="transactionType">交易类型 <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="date">日期 <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="fundName">基金名称 <span class="sort-icon">⇅</span></th>
+                            <th>基金代码</th>
+                            <th class="sortable" data-sort="netValue">确认净值 <span class="sort-icon">⇅</span></th>
+                            <th>手续费</th>
+                            <th class="sortable" data-sort="amount">确认金额 <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="shares">确认份额 <span class="sort-icon">⇅</span></th>
+                            <th>成本单价</th>
+                            <th>成本金额</th>
+                            <th class="sortable" data-sort="profit">收益金额 <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="profitRate">收益率 <span class="sort-icon">⇅</span></th>
+                            <th>交易渠道</th>
+                            <th>备注</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="16" class="empty-message">暂无交易记录，请添加新记录</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="statistics">
+            <h2>统计信息</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">总交易次数</div>
+                    <div class="stat-value" id="totalCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">买入次数</div>
+                    <div class="stat-value" id="buyCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">卖出次数</div>
+                    <div class="stat-value" id="sellCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">累计收益</div>
+                    <div class="stat-value" id="totalProfit">0.00 元</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 持仓管理页面 -->
+    <div id="holdingsTab" class="tab-content">
+        <div class="form-section">
+            <h2 id="holdingFormTitle">新增持仓基金</h2>
+            <form id="holdingForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="holdingFundName">基金名称 *</label>
+                        <input type="text" id="holdingFundName" placeholder="例如：东财证券30C" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="holdingFundCode">基金代码 *</label>
+                        <div class="input-group">
+                            <input type="text" id="holdingFundCode" placeholder="例如：159857" required>
+                            <button type="button" id="searchHoldingFundBtn" class="btn-icon" title="查询基金名称">🔍</button>
+                            <button type="button" id="syncNetValueBtn" class="btn-icon" title="同步最新净值">🔄</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="holdingCostPrice">持有成本单价(元) *</label>
+                        <input type="number" id="holdingCostPrice" step="0.0001" placeholder="1.3172" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="holdingShares">持有份额(份)</label>
+                        <input type="number" id="holdingShares" step="0.01" placeholder="1000.00">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="holdingCurrentValue">当前净值(元)</label>
+                        <input type="number" id="holdingCurrentValue" step="0.0001" placeholder="1.4000">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="holdingRemark">备注</label>
+                        <input type="text" id="holdingRemark" placeholder="可选填写备注">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="submitHoldingBtn">保存持仓</button>
+                    <button type="button" id="cancelHoldingEditBtn" class="btn btn-default" style="display:none;">取消编辑</button>
+                    <button type="reset" class="btn btn-default">清空表单</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="table-section">
+            <h2>持仓基金列表</h2>
+            <div class="table-wrapper">
+                <table id="holdingsTable">
+                    <thead>
+                        <tr>
+                            <th>序号</th>
+                            <th class="sortable" data-sort="fundName">基金名称 <span class="sort-icon">⇅</span></th>
+                            <th>基金代码</th>
+                            <th class="sortable" data-sort="costPrice">成本单价 <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="shares">持有份额 <span class="sort-icon">⇅</span></th>
+                            <th>成本金额</th>
+                            <th class="sortable" data-sort="currentValue">当前净值 <span class="sort-icon">⇅</span></th>
+                            <th>市值</th>
+                            <th class="sortable" data-sort="profit">浮动盈亏 <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="profitRate">收益率 <span class="sort-icon">⇅</span></th>
+                            <th>备注</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="holdingsTableBody">
+                        <tr>
+                            <td colspan="12" class="empty-message">暂无持仓记录，请添加持仓基金</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="statistics">
+            <h2>持仓统计</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">持仓基金数</div>
+                    <div class="stat-value" id="holdingCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">总成本</div>
+                    <div class="stat-value" id="totalCost">0.00 元</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">总市值</div>
+                    <div class="stat-value" id="totalMarketValue">0.00 元</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">浮动盈亏</div>
+                    <div class="stat-value" id="totalHoldingProfit">0.00 元</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 收益分析页面 -->
+    <div id="analysisTab" class="tab-content">
+        <div class="table-section">
+            <h2>基金收益排行</h2>
+            <div class="table-wrapper">
+                <table id="rankingTable">
+                    <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>基金名称</th>
+                            <th>基金代码</th>
+                            <th>交易次数</th>
+                            <th>累计收益</th>
+                            <th>平均收益率</th>
+                            <th>最高单次收益</th>
+                            <th>最低单次收益</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingTableBody">
+                        <tr>
+                            <td colspan="8" class="empty-message">暂无数据</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- WebDAV设置弹窗 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ WebDAV云同步设置</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="alert-box info-box">
+                    <strong>⚠️ 重要提示：</strong><br>
+                    本地文件(file://)由于浏览器安全限制，无法使用WebDAV功能。<br>
+                    <strong>解决方案：</strong>部署到GitHub Pages后即可正常使用。<br>
+                    临时方案：使用"导出数据"和"导入数据"功能手动备份。
+                </div>
+                
+                <div class="form-group">
+                    <label for="webdavUrl">WebDAV服务器地址 *</label>
+                    <input type="text" id="webdavUrl" placeholder="https://dav.jianguoyun.com/dav/">
+                    <small>坚果云WebDAV地址：https://dav.jianguoyun.com/dav/</small>
+                </div>
+                <div class="form-group">
+                    <label for="webdavUsername">WebDAV账号 *</label>
+                    <input type="text" id="webdavUsername" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="webdavPassword">WebDAV密码 *</label>
+                    <input type="password" id="webdavPassword" placeholder="应用密码">
+                    <small>坚果云需使用应用密码，在账户设置中生成</small>
+                </div>
+                <div class="form-group">
+                    <label for="webdavPath">保存路径</label>
+                    <input type="text" id="webdavPath" placeholder="/基金记录/fund-data.json" value="/fund-data.json">
+                </div>
+                <div class="sync-status" id="syncStatus"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="testConnectionBtn" class="btn btn-secondary">测试连接</button>
+                <button id="saveSettingsBtn" class="btn btn-primary">保存设置</button>
+                <button id="closeSettingsBtn" class="btn btn-default">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
